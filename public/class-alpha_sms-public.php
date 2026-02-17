@@ -608,8 +608,11 @@ class Alpha_sms_Public
             return;
         }
 
+        $is_post_request = isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST';
+        $action_type     = isset($_POST['action_type']) ? sanitize_text_field(wp_unslash($_POST['action_type'])) : '';
+
         // Nonce validation for WooCommerce registration phone field: require nonce when wc_reg option enabled
-        if (! empty($this->options['wc_reg'])) {
+        if ($is_post_request && $action_type === 'wc_reg' && ! empty($this->options['wc_reg'])) {
             $wc_reg_phone_nonce = isset($_POST['wc_reg_phone_nonce']) ? sanitize_text_field(wp_unslash($_POST['wc_reg_phone_nonce'])) : '';
             if (empty($wc_reg_phone_nonce) || ! function_exists('wp_verify_nonce') || ! wp_verify_nonce($wc_reg_phone_nonce, 'wc_reg_phone_action')) {
                 if (function_exists('wc_add_notice')) {
@@ -622,7 +625,7 @@ class Alpha_sms_Public
         }
 
         // Nonce validation for WP registration phone field: require nonce when wp_reg option enabled
-        if (! empty($this->options['wp_reg'])) {
+        if ($is_post_request && $action_type === 'wp_reg' && ! empty($this->options['wp_reg'])) {
             $wp_reg_phone_nonce = isset($_POST['wp_reg_phone_nonce']) ? sanitize_text_field(wp_unslash($_POST['wp_reg_phone_nonce'])) : '';
             if (empty($wp_reg_phone_nonce) || ! function_exists('wp_verify_nonce') || ! wp_verify_nonce($wp_reg_phone_nonce, 'wp_reg_phone_action')) {
                 if (function_exists('add_filter')) {
@@ -640,13 +643,30 @@ class Alpha_sms_Public
         if (isset($_POST['billing_phone'])) {
             $billing_phone = sanitize_text_field(wp_unslash($_POST['billing_phone']));
             if ($this->validateNumber($billing_phone)) {
-                update_user_meta(
-                    $customer_id,
-                    'billing_phone',
-                    $this->validateNumber($billing_phone)
-                );
+                $this->save_verified_phone_to_user_profile($customer_id, $billing_phone);
             }
         }
+    }
+
+    /**
+     * Save verified phone to user profile meta
+     *
+     * @param int    $user_id User ID
+     * @param string $phone   Phone number
+     */
+    public function save_verified_phone_to_user_profile($user_id, $phone)
+    {
+        if (empty($user_id) || empty($phone)) {
+            return;
+        }
+
+        $validated_phone = $this->validateNumber($phone);
+        if (!$validated_phone) {
+            return;
+        }
+
+        update_user_meta($user_id, 'billing_phone', $validated_phone);
+        update_user_meta($user_id, 'mobile_phone', $validated_phone);
     }
 
     /**

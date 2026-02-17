@@ -16,7 +16,7 @@
  * Plugin Name:       Alpha SMS
  * Plugin URI:        https://sms.net.bd/plugins/wordpress
  * Description:       WP 2FA Login. SMS OTP Verification for Registration and Login forms, WooCommerce SMS Notification for your shop orders.
- * Version:           1.0.16
+ * Version:           1.0.17
  * Author:            Alpha Net
  * Author URI:        https://sms.net.bd/
  * License:           GPL-2.0+
@@ -35,7 +35,7 @@ if (!defined('WPINC')) {
  * Start at version 1.0.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define('ALPHA_SMS_VERSION', '1.0.16');
+define('ALPHA_SMS_VERSION', '1.0.17');
 
 // plugin constants
 define('ALPHA_SMS_PATH', plugin_dir_path(__FILE__));

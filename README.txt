@@ -4,7 +4,7 @@ Tags: order notification, woocommerce sms integration, two-step verification, OT
 Requires at least: 3.5
 Tested up to: 6.9
 Requires PHP: 5.6
-Stable tag: 1.0.16
+Stable tag: 1.0.17
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -58,6 +58,10 @@ Yes. OTP verification for WordPress and WooCommerce registration and login works
 2. Campaign form for sending bulk SMS.
 
 == Changelog ==
+
+= 1.0.17 =
+* Save verified registration phone numbers to user profile metadata for OTP login reuse.
+* Scope registration nonce checks to form POSTs so user meta sync runs on hook calls.
 
 = 1.0.13 =
 * Added a background processor so campaign SMS messages are queued individually and sent by scheduled jobs.
