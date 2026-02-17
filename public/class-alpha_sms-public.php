@@ -142,7 +142,7 @@ class Alpha_sms_Public
                 $this->plugin_name . '_object',
                 [
                     'ajaxurl' => admin_url('admin-ajax.php'),
-                    $this->plugin_name . '_checkout_nonce' => wp_create_nonce('woocommerce-process-checkout-nonce'),
+                    $this->plugin_name . '_checkout_nonce' => wp_create_nonce('alpha_sms_checkout_otp'),
                     'checkout_otp' => ! empty($this->options['otp_checkout']) ? 'yes' : 'no',
                 ]
             );
@@ -255,16 +255,8 @@ class Alpha_sms_Public
 
         // Guest checkout / other actions that rely on WooCommerce checkout nonce
         if ($action_type === 'wc_checkout') {
-            $wc_checkout_nonce = isset($_POST['woocommerce-process-checkout-nonce']) ? sanitize_text_field(wp_unslash($_POST['woocommerce-process-checkout-nonce'])) : '';
-            if (empty($wc_checkout_nonce) || ! wp_verify_nonce($wc_checkout_nonce, 'woocommerce-process-checkout-nonce')) {
-                $response = [
-                    'status'  => 403,
-                    'message' => __('Security Check failed. Please reload the page and try again.', 'alpha-sms'),
-                ];
-                echo wp_kses_post(json_encode($response));
-                wp_die();
-                exit;
-            }
+            check_ajax_referer('alpha_sms_checkout_otp', 'alpha_sms_checkout_nonce');
+
             $nonce_ok = true;
         }
 
@@ -805,13 +797,6 @@ class Alpha_sms_Public
         $enable_guest_checkout = $enable_guest_checkout === 'yes' ? true : false;
 
         if (! $this->pluginActive || ! $this->options['otp_checkout'] || ! $enable_guest_checkout) {
-            return;
-        }
-
-        // Nonce verification for guest checkout OTP
-        $wc_checkout_otp_nonce = isset($_POST['woocommerce-process-checkout-nonce']) ? sanitize_text_field(wp_unslash($_POST['woocommerce-process-checkout-nonce'])) : '';
-        if (empty($wc_checkout_otp_nonce) || ! wp_verify_nonce($wc_checkout_otp_nonce, 'woocommerce-process-checkout-nonce')) {
-            wc_add_notice(__('Security Check failed. Please try again.', 'alpha-sms'), 'error');
             return;
         }
 

@@ -32,7 +32,9 @@ $(function () {
    }
 
 
-   initializeCheckoutSubmitProxy();
+   if(alpha_sms_object.checkout_otp == 'yes'){
+      initializeCheckoutSubmitProxy();
+   }
    $(document.body).on('updated_checkout', initializeCheckoutSubmitProxy);
 });
 
@@ -101,7 +103,7 @@ function WC_Login_SendOtp(e) {
    )
       .fail(() =>
          alert_wrapper.html(
-            showError('Something went wrong. Please try again later')
+            showError('OTP verification request failed. Please try again later')
          )
       )
       .done(() =>
@@ -211,12 +213,9 @@ function WC_Checkout_SendOtp(e) {
       action: 'wc_send_otp',
       billing_phone: phone,
       action_type: checkout_form.find('#action_type').val(),
+      alpha_sms_checkout_nonce: alpha_sms_object.alpha_sms_checkout_nonce
    };
-   // include checkout nonce if present
-   const checkoutNonceField = checkout_form.find('input[name="woocommerce-process-checkout-nonce"]');
-   if (checkoutNonceField && checkoutNonceField.length) {
-      data['woocommerce-process-checkout-nonce'] = checkoutNonceField.val();
-   }
+
 
    $.post(
       alpha_sms_object.ajaxurl,

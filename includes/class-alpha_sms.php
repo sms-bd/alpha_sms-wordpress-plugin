@@ -76,7 +76,7 @@ class Alpha_sms
         if (defined('ALPHA_SMS_VERSION')) {
             $this->version = ALPHA_SMS_VERSION;
         } else {
-            $this->version = '1.0.15';
+            $this->version = '1.0.16';
         }
         $this->plugin_name = 'alpha_sms';
 
