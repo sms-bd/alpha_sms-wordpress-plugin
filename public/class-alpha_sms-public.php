@@ -869,16 +869,30 @@ class Alpha_sms_Public
     }
 
     /**
-     * Check that the billing phone submitted with the checkout matches
+     * Check that the billing phone submitted with the classic checkout matches
      * the phone that was OTP-verified in the session.
+     *
+     * @return bool True when the phones match or when comparison is not possible.
+     */
+    private function checkout_phone_matches_verified()
+    {
+        $billing_phone = isset($_POST['billing_phone']) ? sanitize_text_field(wp_unslash($_POST['billing_phone'])) : '';
+
+        return $this->verified_phone_matches($billing_phone);
+    }
+
+    /**
+     * Compare a given phone number against the OTP-verified phone stored in the session.
      *
      * This prevents a user from verifying phone A and then changing
      * the billing phone to phone B via browser dev-tools before placing
      * the order.
      *
+     * @param string $phone The billing phone to compare.
+     *
      * @return bool True when the phones match or when comparison is not possible.
      */
-    private function checkout_phone_matches_verified()
+    private function verified_phone_matches($phone)
     {
         $verified_phone = $this->get_otp_store_value('alpha_sms_verified_phone');
 
@@ -887,13 +901,11 @@ class Alpha_sms_Public
             return true;
         }
 
-        $billing_phone = isset($_POST['billing_phone']) ? sanitize_text_field(wp_unslash($_POST['billing_phone'])) : '';
-
-        if (empty($billing_phone)) {
+        if (empty($phone)) {
             return false;
         }
 
-        $normalised = $this->validateNumber($billing_phone);
+        $normalised = $this->validateNumber($phone);
 
         if (empty($normalised)) {
             return false;
@@ -942,6 +954,9 @@ class Alpha_sms_Public
                 $secure = function_exists('is_ssl') ? is_ssl() : false;
                 $ttl    = defined('DAY_IN_SECONDS') ? DAY_IN_SECONDS : 86400;
 
+                // PHP 7.3+ supports the options-array form of setcookie which
+                // allows setting the SameSite attribute for CSRF protection.
+                // Older PHP falls back to the positional API without SameSite.
                 if (PHP_VERSION_ID >= 70300) {
                     setcookie('alpha_sms_session', $session_id, [
                         'expires'  => time() + $ttl,
@@ -1615,33 +1630,26 @@ class Alpha_sms_Public
         $verified = $this->get_otp_store_value('alpha_sms_checkout_verified');
         if ($verified) {
             // Verify the phone on the order matches the OTP-verified phone
-            $verified_phone = $this->get_otp_store_value('alpha_sms_verified_phone');
-            $order_phone    = '';
+            $order_phone = is_callable([$order, 'get_billing_phone']) ? $order->get_billing_phone() : '';
 
-            if (is_callable([$order, 'get_billing_phone'])) {
-                $order_phone = $order->get_billing_phone();
-            }
-
-            $normalised_order = $this->validateNumber($order_phone);
-
-            if (! empty($verified_phone) && ! empty($normalised_order) && ! hash_equals((string) $verified_phone, (string) $normalised_order)) {
+            if ($this->verified_phone_matches($order_phone)) {
                 $this->clear_transient_otp_data();
-
-                $mismatch_message = __('The billing phone number does not match the verified number. Please verify again.', 'alpha-sms');
-
-                if (class_exists('\Automattic\WooCommerce\StoreApi\Exceptions\RouteException')) {
-                    throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
-                        'alpha_sms_phone_mismatch',
-                        $mismatch_message,
-                        400
-                    );
-                }
-
-                throw new \Exception($mismatch_message);
+                return;
             }
 
             $this->clear_transient_otp_data();
-            return;
+
+            $mismatch_message = __('The billing phone number does not match the verified number. Please verify again.', 'alpha-sms');
+
+            if (class_exists('\Automattic\WooCommerce\StoreApi\Exceptions\RouteException')) {
+                throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
+                    'alpha_sms_phone_mismatch',
+                    $mismatch_message,
+                    400
+                );
+            }
+
+            throw new \Exception($mismatch_message);
         }
 
         $error_message = __('Please verify your phone number with OTP before placing the order.', 'alpha-sms');
