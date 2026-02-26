@@ -227,6 +227,7 @@ var alphaSmsCheckoutOtp = {
          var el = $(selectors[i]);
          if (el.length) {
             var val = el.val();
+            // Minimum 10 chars covers BD numbers (11 local / 13 with country code)
             if (val && val.replace(/\s/g, '').length >= 10) {
                return val;
             }

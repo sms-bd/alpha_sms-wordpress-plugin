@@ -63,6 +63,13 @@ class Alpha_sms_Public
     private $checkoutOtpRateWindow = 900;
 
     /**
+     * Duration in seconds for which a verified checkout OTP session remains valid.
+     *
+     * @var int
+     */
+    private $checkoutVerifiedSessionTtl = 1800;
+
+    /**
      * Initialize the class and set its properties.
      *
      * @param  string  $plugin_name  The name of the plugin.
@@ -1537,8 +1544,8 @@ class Alpha_sms_Public
         if ($valid) {
             $verified_phone = $this->validateNumber($billing_phone);
 
-            // Mark session as verified (30 min window to complete checkout)
-            $expires_at = gmdate('Y-m-d H:i:s', time() + 1800);
+            // Mark session as verified for the configured session TTL
+            $expires_at = gmdate('Y-m-d H:i:s', time() + $this->checkoutVerifiedSessionTtl);
             $this->set_transient_otp_data(
                 [
                     'alpha_sms_checkout_verified' => true,
