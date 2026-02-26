@@ -5,18 +5,13 @@ window.$ = jQuery;
 let form,
    wc_reg_form,
    alert_wrapper,
-   checkout_form,
-   checkout_otp,
    otp_input,
-   otp_input_reg,
-   checkout_submit_button,
-   checkout_proxy_button;
+   otp_input_reg;
 
 // fill variables with appropriate selectors and attach event handlers
 $(function () {
    alert_wrapper = $('.woocommerce-notices-wrapper').eq(0);
 
-   checkout_otp = $('#alpha_sms_otp_checkout');
    otp_input = $('#alpha_sms_otp');
    otp_input_reg = $('#alpha_sms_otp_reg');
 
@@ -31,11 +26,8 @@ $(function () {
       wc_reg_form.find(':submit').on('click', WC_Reg_SendOtp);
    }
 
-
-   if(alpha_sms_object.checkout_otp == 'yes'){
-      initializeCheckoutSubmitProxy();
-   }
-   $(document.body).on('updated_checkout', initializeCheckoutSubmitProxy);
+   // Universal checkout OTP panel (works with any theme / checkout mode)
+   alphaSmsCheckoutOtp.init();
 });
 
 // Error template
@@ -184,310 +176,206 @@ function WC_Reg_SendOtp(e) {
       );
 }
 
-// ajax send otp if checkout account creation is enabled
-function WC_Checkout_SendOtp(e) {
-   if (e) e.preventDefault();
-   alert_wrapper.html('');
+/**
+ * Universal checkout OTP verification module.
+ *
+ * Renders a self-contained verification panel (injected via wp_footer) that
+ * is completely independent of the checkout form structure. Works with:
+ * - WooCommerce classic checkout (shortcode)
+ * - WooCommerce block-based checkout
+ * - Custom Elementor / page-builder checkout pages
+ * - Any theme
+ */
+var alphaSmsCheckoutOtp = {
+   verified: false,
+   panel: null,
 
-   checkout_form = getCheckoutForm();
-
-   if (!checkout_form || !checkout_form.length) {
-      return;
-   }
-
-   const phoneField = checkout_form.find('#billing_phone');
-   const phone = phoneField.val();
-
-   if (!phone) {
-      alert_wrapper.html(showError('Fill in the required fields.'));
-      $('html,body').animate({ scrollTop: checkout_form.offset().top }, 'slow');
-      return;
-   }
-
-   if (checkout_proxy_button && checkout_proxy_button.length) {
-      checkout_proxy_button.prop('disabled', true);
-      setCheckoutButtonLabel(checkout_proxy_button, 'Processing');
-   }
-
-   const data = {
-      action: 'wc_send_otp',
-      billing_phone: phone,
-      action_type: checkout_form.find('#action_type').val(),
-      alpha_sms_checkout_nonce: alpha_sms_object.alpha_sms_checkout_nonce
-   };
-
-
-   $.post(
-      alpha_sms_object.ajaxurl,
-      data,
-      function (resp) {
-         if (resp.status === 200) {
-            restoreCheckoutSubmitButton();
-            $('#alpha_sms_otp_checkout').fadeIn();
-            alert_wrapper.html(showSuccess(resp.message));
-            timer(
-               'wc_checkout_resend_otp',
-               120,
-               `<a href="javascript:WC_Checkout_SendOtp()">Resend OTP</a>`
-            );
-         } else {
-            alert_wrapper.html(showError(resp.message));
-         }
-      },
-      'json'
-   )
-      .fail(function () {
-         alert_wrapper.html(
-            showError('Something went wrong. Please try again later')
-         );
-      })
-      .always(function () {
-         if (checkout_form && checkout_form.length) {
-            $('html,body').animate(
-               { scrollTop: checkout_form.offset().top },
-               'slow'
-            );
-         }
-
-         if (checkout_proxy_button && checkout_proxy_button.length) {
-            checkout_proxy_button.prop('disabled', false);
-            const defaultLabel =
-               checkout_proxy_button.data('alphaSmsOriginalLabel') ||
-               getCheckoutButtonLabel(checkout_submit_button);
-            setCheckoutButtonLabel(checkout_proxy_button, defaultLabel);
-         }
-      });
-}
-
-function getCheckoutForm() {
-   if (checkout_form && checkout_form.length) {
-      return checkout_form;
-   }
-
-   checkout_otp = $('#alpha_sms_otp_checkout');
-
-   if (!checkout_otp.length) {
-      return $();
-   }
-
-   checkout_form = checkout_otp
-      .parents('form.checkout.woocommerce-checkout')
-      .eq(0);
-
-   if (!checkout_form.length) {
-      checkout_form = checkout_otp.closest('form');
-   }
-
-   if (!checkout_form.length) {
-      checkout_form = $();
-   }
-
-   return checkout_form;
-}
-
-function findCheckoutSubmitButton(form) {
-   if (!form || !form.length) {
-      return $();
-   }
-
-   let button = form
-      .find('[name="woocommerce_checkout_place_order"][type="submit"]')
-      .last();
-
-   if (!button.length) {
-      button = form.find('button[type="submit"], input[type="submit"]').last();
-   }
-
-   return button;
-}
-
-function getCheckoutButtonLabel(button) {
-   if (!button || !button.length) {
-      return '';
-   }
-
-   if (button.is('input')) {
-      return button.val();
-   }
-
-   return button.html();
-}
-
-function setCheckoutButtonLabel(button, label) {
-   if (!button || !button.length) {
-      return;
-   }
-
-   const safeLabel = label !== undefined && label !== null ? label : '';
-
-   if (button.is('input')) {
-      button.val(safeLabel);
-      return;
-   }
-
-   button.html(safeLabel);
-}
-
-function copyCheckoutButtonAttributes(originalButton, proxyButton) {
-   const originalNode = originalButton.get(0);
-
-   if (!originalNode || !originalNode.attributes) {
-      return;
-   }
-
-   $.each(originalNode.attributes, function () {
-      const attributeName = this.name;
-      const attributeValue = this.value;
-
+   init: function () {
       if (
-         !attributeName ||
-         attributeName === 'id' ||
-         attributeName === 'name' ||
-         attributeName === 'type' ||
-         attributeName === 'value' ||
-         attributeName === 'class'
+         typeof alpha_sms_object === 'undefined' ||
+         alpha_sms_object.checkout_otp !== 'yes'
       ) {
          return;
       }
 
-      proxyButton.attr(attributeName, attributeValue);
-   });
-}
-
-function copyCheckoutButtonStyles(originalButton, proxyButton) {
-   if (
-      !window ||
-      !window.getComputedStyle ||
-      !originalButton ||
-      !originalButton.length ||
-      !proxyButton ||
-      !proxyButton.length
-   ) {
-      return;
-   }
-
-   const originalNode = originalButton.get(0);
-   const proxyNode = proxyButton.get(0);
-
-   if (!originalNode || !proxyNode) {
-      return;
-   }
-
-   const computed = window.getComputedStyle(originalNode);
-
-   proxyNode.style.cssText = '';
-
-   for (let i = 0; i < computed.length; i++) {
-      const propertyName = computed[i];
-
-      if (!propertyName) {
-         continue;
+      this.panel = $('#alpha-sms-checkout-otp-wrapper');
+      if (!this.panel.length) {
+         return;
       }
 
-      const value = computed.getPropertyValue(propertyName);
+      this.panel.show();
+      this.bindEvents();
+   },
 
-      if (!value || (propertyName === 'display' && value === 'none')) {
-         continue;
+   /**
+    * Try to find the billing phone value from the checkout form.
+    * Uses multiple selectors to support classic, block, and custom themes.
+    */
+   findBillingPhone: function () {
+      var selectors = [
+         '#billing_phone',
+         '#billing-phone',
+         'input[name="billing_phone"]',
+         'input[id*="billing"][id*="phone"]',
+         'input[name*="billing"][name*="phone"]',
+         '.wc-block-components-phone-number input',
+         'input[autocomplete="tel"]',
+         'input[type="tel"]',
+      ];
+
+      for (var i = 0; i < selectors.length; i++) {
+         var el = $(selectors[i]);
+         if (el.length) {
+            var val = el.val();
+            if (val && val.replace(/\s/g, '').length >= 10) {
+               return val;
+            }
+         }
       }
 
-      proxyNode.style.setProperty(
-         propertyName,
-         value,
-         computed.getPropertyPriority(propertyName)
+      return '';
+   },
+
+   sendOtp: function () {
+      var phone = this.findBillingPhone();
+      if (!phone) {
+         this.showMessage(
+            'Please fill in your phone number in the checkout form first.',
+            'error'
+         );
+         return;
+      }
+
+      var self = this;
+      $('#alpha-sms-send-otp-btn').prop('disabled', true).text('Sending…');
+
+      $.post(
+         alpha_sms_object.ajaxurl,
+         {
+            action: 'wc_send_otp',
+            billing_phone: phone,
+            action_type: 'wc_checkout',
+            alpha_sms_checkout_nonce:
+               alpha_sms_object.alpha_sms_checkout_nonce,
+         },
+         function (resp) {
+            if (resp.status === 200) {
+               self.showMessage(resp.message, 'success');
+               $('#alpha-sms-otp-send-step').hide();
+               $('#alpha-sms-otp-verify-step').fadeIn();
+               timer(
+                  'alpha-sms-otp-countdown',
+                  120,
+                  '<a href="javascript:void(0)" class="alpha-sms-resend-link">Resend OTP</a>'
+               );
+            } else {
+               self.showMessage(resp.message, 'error');
+            }
+         },
+         'json'
+      )
+         .fail(function () {
+            self.showMessage(
+               'Something went wrong. Please try again.',
+               'error'
+            );
+         })
+         .always(function () {
+            $('#alpha-sms-send-otp-btn')
+               .prop('disabled', false)
+               .text('Send Verification Code');
+         });
+   },
+
+   verifyOtp: function () {
+      var code = $('#alpha-sms-otp-code').val();
+      if (!code) {
+         this.showMessage('Please enter the OTP code.', 'error');
+         return;
+      }
+
+      var phone = this.findBillingPhone();
+      var self = this;
+
+      $('#alpha-sms-verify-otp-btn').prop('disabled', true).text('Verifying…');
+
+      $.post(
+         alpha_sms_object.ajaxurl,
+         {
+            action: 'alpha_sms_verify_checkout_otp',
+            otp_code: code,
+            billing_phone: phone,
+            alpha_sms_checkout_nonce:
+               alpha_sms_object.alpha_sms_checkout_nonce,
+         },
+         function (resp) {
+            if (resp.status === 200) {
+               self.verified = true;
+               self.showVerified();
+            } else {
+               self.showMessage(resp.message, 'error');
+            }
+         },
+         'json'
+      )
+         .fail(function () {
+            self.showMessage(
+               'Verification failed. Please try again.',
+               'error'
+            );
+         })
+         .always(function () {
+            $('#alpha-sms-verify-otp-btn')
+               .prop('disabled', false)
+               .text('Verify');
+         });
+   },
+
+   showMessage: function (msg, type) {
+      var cls =
+         type === 'success'
+            ? 'alpha-sms-msg-success'
+            : 'alpha-sms-msg-error';
+      $('#alpha-sms-otp-status').html(
+         '<p class="' + cls + '">' + msg + '</p>'
       );
-   }
-}
+   },
 
-function createCheckoutProxyButton(originalButton) {
-   if (!originalButton || !originalButton.length) {
-      return null;
-   }
+   showVerified: function () {
+      $('#alpha-sms-otp-send-step').hide();
+      $('#alpha-sms-otp-verify-step').hide();
+      $('#alpha-sms-otp-verified').fadeIn();
+      $('#alpha-sms-otp-status').html('');
+      this.panel.addClass('alpha-sms-verified');
+   },
 
-   let proxyButton;
+   bindEvents: function () {
+      var self = this;
+      $(document).on('click', '#alpha-sms-send-otp-btn', function () {
+         self.sendOtp();
+      });
+      $(document).on('click', '#alpha-sms-verify-otp-btn', function () {
+         self.verifyOtp();
+      });
+      $(document).on('click', '.alpha-sms-resend-link', function () {
+         $('#alpha-sms-otp-verify-step').hide();
+         $('#alpha-sms-otp-send-step').fadeIn();
+         self.sendOtp();
+      });
+   },
+};
 
-   if (originalButton.is('input')) {
-      proxyButton = $('<input type="button" />');
-   } else {
-      proxyButton = $('<button type="button"></button>');
-   }
+function timer(displayID, remaining, timeoutEl) {
+   timeoutEl = timeoutEl || '';
+   var el = document.getElementById(displayID);
+   if (!el) return;
 
-   copyCheckoutButtonAttributes(originalButton, proxyButton);
-
-   const defaultLabel = getCheckoutButtonLabel(originalButton);
-
-   proxyButton.data('alphaSmsOriginalLabel', defaultLabel);
-   setCheckoutButtonLabel(proxyButton, defaultLabel);
-
-   copyCheckoutButtonStyles(originalButton, proxyButton);
-
-   return proxyButton;
-}
-
-function restoreCheckoutSubmitButton() {
-   if (checkout_submit_button && checkout_submit_button.length) {
-      checkout_submit_button.prop('disabled', false);
-      checkout_submit_button.show();
-   }
-
-   if (checkout_proxy_button && checkout_proxy_button.length) {
-      checkout_proxy_button.off('click', WC_Checkout_SendOtp).remove();
-      checkout_proxy_button = null;
-   }
-}
-
-function teardownCheckoutProxy() {
-   restoreCheckoutSubmitButton();
-   checkout_submit_button = null;
-   checkout_form = null;
-}
-
-function initializeCheckoutSubmitProxy() {
-   checkout_otp = $('#alpha_sms_otp_checkout');
-
-   if (!checkout_otp.length) {
-      teardownCheckoutProxy();
-      return;
-   }
-
-   checkout_form = getCheckoutForm();
-
-   if (!checkout_form.length) {
-      return;
-   }
-
-   const originalButton = findCheckoutSubmitButton(checkout_form);
-
-   if (!originalButton.length) {
-      return;
-   }
-
-   if (checkout_proxy_button && checkout_proxy_button.length) {
-      checkout_proxy_button.off('click', WC_Checkout_SendOtp).remove();
-   }
-
-   checkout_submit_button = originalButton;
-   checkout_submit_button.prop('disabled', false);
-   checkout_submit_button.show();
-
-   checkout_proxy_button = createCheckoutProxyButton(originalButton);
-
-   if (!checkout_proxy_button || !checkout_proxy_button.length) {
-      return;
-   }
-
-   checkout_proxy_button.insertAfter(originalButton);
-   checkout_proxy_button.on('click', WC_Checkout_SendOtp);
-
-   checkout_submit_button.hide();
-}
-
-function timer(displayID, remaining, timeoutEl = '') {
-   let m = Math.floor(remaining / 60);
-   let s = remaining % 60;
+   var m = Math.floor(remaining / 60);
+   var s = remaining % 60;
 
    m = m < 10 ? '0' + m : m;
    s = s < 10 ? '0' + s : s;
-   document.getElementById(displayID).innerHTML = m + ':' + s;
+   el.innerHTML = m + ':' + s;
    remaining -= 1;
 
    if (remaining >= 0) {
@@ -497,5 +385,5 @@ function timer(displayID, remaining, timeoutEl = '') {
       return;
    }
    // Do timeout stuff here
-   document.getElementById(displayID).innerHTML = timeoutEl;
+   el.innerHTML = timeoutEl;
 }

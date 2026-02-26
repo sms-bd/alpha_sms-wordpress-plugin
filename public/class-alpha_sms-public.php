@@ -820,6 +820,18 @@ class Alpha_sms_Public
             return;
         }
 
+        if (is_user_logged_in()) {
+            return;
+        }
+
+        // New universal approach: check session-level verified flag
+        $verified = $this->get_otp_store_value('alpha_sms_checkout_verified');
+        if ($verified) {
+            $this->clear_transient_otp_data();
+            return;
+        }
+
+        // Legacy fallback: check for inline OTP code in the form submission
         if (! empty($_REQUEST['otp_code'])) {
             $otp_code = sanitize_text_field(wp_unslash($_REQUEST['otp_code']));
 
@@ -827,13 +839,12 @@ class Alpha_sms_Public
 
             if ($valid_user) {
                 $this->deletePastData();
-            } else {
-                /* translators: Error message shown when user must enter a valid OTP. */
-                wc_add_notice(__('Please enter a valid OTP.', 'alpha-sms'), 'error');
+                return;
             }
-        } else {
-            wc_add_notice(__('Please enter a valid OTP.', 'alpha-sms'), 'error');
         }
+
+        /* translators: Error message shown when user must verify phone before checkout. */
+        wc_add_notice(__('Please verify your phone number with OTP before placing the order.', 'alpha-sms'), 'error');
     }
 
     /**
@@ -1439,5 +1450,157 @@ class Alpha_sms_Public
 <?php
         }
     }
-    
+
+    /**
+     * Render the checkout OTP verification panel in the page footer.
+     *
+     * Uses wp_footer which fires on every page regardless of theme or checkout
+     * mode (classic, block-based, Elementor, etc.). The output is gated to
+     * checkout pages only so it does not appear elsewhere.
+     */
+    public function render_checkout_otp_modal()
+    {
+        if (! $this->pluginActive || empty($this->options['otp_checkout'])) {
+            return;
+        }
+
+        if (is_user_logged_in()) {
+            return;
+        }
+
+        $enable_guest_checkout = get_option('woocommerce_enable_guest_checkout');
+        if ($enable_guest_checkout !== 'yes') {
+            return;
+        }
+
+        if (! $this->is_checkout_page()) {
+            return;
+        }
+
+        require_once plugin_dir_path(__FILE__) . 'partials/add-otp-checkout-modal.php';
+    }
+
+    /**
+     * Determine whether the current page is a WooCommerce checkout page.
+     *
+     * Checks multiple indicators so this works with the classic shortcode
+     * checkout, the block-based checkout, and custom page-builder layouts.
+     *
+     * @return bool
+     */
+    private function is_checkout_page()
+    {
+        // Standard WooCommerce check (works for classic & block checkout pages)
+        if (function_exists('is_checkout') && is_checkout()) {
+            return true;
+        }
+
+        // Fallback: check for the checkout shortcode in page content
+        global $post;
+        if (! empty($post->post_content)) {
+            if (has_shortcode($post->post_content, 'woocommerce_checkout')) {
+                return true;
+            }
+
+            // Check for the WooCommerce checkout block
+            if (function_exists('has_block') && has_block('woocommerce/checkout', $post)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * AJAX handler to verify checkout OTP and set session verified flag.
+     *
+     * After a successful verification the session is marked as verified so that
+     * the subsequent checkout submission (classic or block) passes server-side
+     * validation without requiring the OTP code in the POST payload.
+     */
+    public function ajax_verify_checkout_otp()
+    {
+        check_ajax_referer('alpha_sms_checkout_otp', 'alpha_sms_checkout_nonce');
+
+        $otp_code      = isset($_POST['otp_code']) ? sanitize_text_field(wp_unslash($_POST['otp_code'])) : '';
+        $billing_phone = isset($_POST['billing_phone']) ? sanitize_text_field(wp_unslash($_POST['billing_phone'])) : '';
+
+        if (empty($otp_code)) {
+            wp_send_json([
+                'status'  => 400,
+                'message' => __('Please enter the OTP code.', 'alpha-sms'),
+            ]);
+        }
+
+        $valid = $this->authenticate_otp(trim($otp_code));
+
+        if ($valid) {
+            $verified_phone = $this->validateNumber($billing_phone);
+
+            // Mark session as verified (30 min window to complete checkout)
+            $expires_at = gmdate('Y-m-d H:i:s', time() + 1800);
+            $this->set_transient_otp_data(
+                [
+                    'alpha_sms_checkout_verified' => true,
+                    'alpha_sms_verified_phone'    => $verified_phone ? $verified_phone : '',
+                    'alpha_sms_otp_code'          => '',
+                ],
+                $expires_at
+            );
+
+            wp_send_json([
+                'status'  => 200,
+                'message' => __('Phone number verified successfully!', 'alpha-sms'),
+            ]);
+        }
+
+        wp_send_json([
+            'status'  => 400,
+            'message' => __('Invalid OTP. Please try again.', 'alpha-sms'),
+        ]);
+    }
+
+    /**
+     * Validate guest checkout OTP for the block-based (Store API) checkout.
+     *
+     * Throws a RouteException when the session has not been verified which
+     * prevents the order from being created.
+     *
+     * @param \WC_Order                                    $order   The order being processed.
+     * @param \WP_REST_Request|\Automattic\WooCommerce\StoreApi\Routes\V1\Checkout $request The Store API request.
+     */
+    public function validate_block_checkout_otp($order, $request)
+    {
+        $enable_guest_checkout = get_option('woocommerce_enable_guest_checkout');
+        if ($enable_guest_checkout !== 'yes') {
+            return;
+        }
+
+        if (! $this->pluginActive || empty($this->options['otp_checkout'])) {
+            return;
+        }
+
+        if (is_user_logged_in()) {
+            return;
+        }
+
+        $verified = $this->get_otp_store_value('alpha_sms_checkout_verified');
+        if ($verified) {
+            $this->clear_transient_otp_data();
+            return;
+        }
+
+        $error_message = __('Please verify your phone number with OTP before placing the order.', 'alpha-sms');
+
+        if (class_exists('\Automattic\WooCommerce\StoreApi\Exceptions\RouteException')) {
+            throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
+                'alpha_sms_otp_required',
+                $error_message,
+                400
+            );
+        }
+
+        throw new \Exception($error_message);
+    }
 }
+

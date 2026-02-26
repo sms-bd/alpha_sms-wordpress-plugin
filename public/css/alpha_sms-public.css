@@ -14,3 +14,118 @@
 .mb-3{
     margin-bottom: 1rem !important;
 }
+
+/* ===== Checkout OTP verification panel ===== */
+
+.alpha-sms-otp-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 99999;
+    max-width: 360px;
+    width: calc(100% - 40px);
+}
+
+.alpha-sms-otp-panel-inner {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-left: 4px solid #cc6600;
+    border-radius: 6px;
+    padding: 18px 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.alpha-sms-verified .alpha-sms-otp-panel-inner {
+    border-left-color: #00a32a;
+}
+
+.alpha-sms-otp-title {
+    margin: 0 0 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+}
+
+.alpha-sms-otp-desc {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: #666;
+}
+
+.alpha-sms-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #f7f7f7;
+    color: #333;
+}
+
+.alpha-sms-btn:hover {
+    background: #eee;
+}
+
+.alpha-sms-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#alpha-sms-otp-verify-step label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+#alpha-sms-otp-code {
+    width: 100%;
+    max-width: 200px;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#alpha-sms-otp-countdown {
+    display: inline-block;
+    font-size: 12px;
+    color: #888;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.alpha-sms-verified-badge {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #00a32a;
+    padding: 4px 0;
+}
+
+.alpha-sms-msg-success {
+    color: #00a32a;
+    font-size: 12px;
+    margin: 6px 0;
+}
+
+.alpha-sms-msg-error {
+    color: #d63638;
+    font-size: 12px;
+    margin: 6px 0;
+}
+
+/* Responsive: full-width on small screens */
+@media (max-width: 480px) {
+    .alpha-sms-otp-panel {
+        right: 10px;
+        bottom: 10px;
+        max-width: calc(100% - 20px);
+    }
+
+    .alpha-sms-otp-panel-inner {
+        padding: 14px 16px;
+    }
+}
