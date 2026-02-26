@@ -234,13 +234,10 @@ class Alpha_sms_Public
         if ($action_type === 'wc_reg') {
             $wc_reg_phone_nonce = isset($_POST['wc_reg_phone_nonce']) ? sanitize_text_field(wp_unslash($_POST['wc_reg_phone_nonce'])) : '';
             if (empty($wc_reg_phone_nonce) || ! wp_verify_nonce($wc_reg_phone_nonce, 'wc_reg_phone_action')) {
-                $response = [
+                wp_send_json([
                     'status'  => 403,
                     'message' => __('Security Check failed. Please reload the page and try again.', 'alpha-sms'),
-                ];
-                echo wp_kses_post(json_encode($response));
-                wp_die();
-                exit;
+                ]);
             }
             $nonce_ok = true;
         }
@@ -249,13 +246,10 @@ class Alpha_sms_Public
         if ($action_type === 'wp_reg') {
             $wp_reg_phone_nonce = isset($_POST['wp_reg_phone_nonce']) ? sanitize_text_field(wp_unslash($_POST['wp_reg_phone_nonce'])) : '';
             if (empty($wp_reg_phone_nonce) || ! wp_verify_nonce($wp_reg_phone_nonce, 'wp_reg_phone_action')) {
-                $response = [
+                wp_send_json([
                     'status'  => 403,
                     'message' => __('Security Check failed. Please reload the page and try again.', 'alpha-sms'),
-                ];
-                echo wp_kses_post(json_encode($response));
-                wp_die();
-                exit;
+                ]);
             }
             $nonce_ok = true;
         }
@@ -269,13 +263,10 @@ class Alpha_sms_Public
 
         // If action_type is missing or not recognized we cannot safely continue.
         if (! $nonce_ok) {
-            $response = [
+            wp_send_json([
                 'status'  => 403,
                 'message' => __('Security Check failed. Missing or invalid action type.', 'alpha-sms'),
-            ];
-            echo wp_kses_post(json_encode($response));
-            wp_die();
-            exit;
+            ]);
         }
 
         if (isset($_POST['billing_phone'])) {
@@ -284,40 +275,29 @@ class Alpha_sms_Public
 
         $password = isset($_POST['password']) ? sanitize_text_field(wp_unslash($_POST['password'])) : '';
         if (! empty($password) && strlen($password) < 8) {
-            /* translators: Error message shown when password is too weak. */
-            $response = [
+            wp_send_json([
                 'status' => 400,
                 /* translators: Error message shown when password is too weak. */
                 'message' => __('Weak - Please enter a stronger password.', 'alpha-sms')
-            ];
-            echo wp_kses_post(json_encode($response));
-            wp_die();
-            exit;
+            ]);
         }
 
         if (! $user_phone) {
-            /* translators: Error message shown when phone number is not valid. */
-            $response = [
+            wp_send_json([
                 'status' => 400,
                 /* translators: Error message shown when phone number is not valid. */
                 'message' => __('The phone number you entered is not valid!', 'alpha-sms')
-            ];
-            echo wp_kses_post(json_encode($response));
-            wp_die();
-            exit;
+            ]);
         }
 
         $is_checkout_request = ! empty($_POST['action_type']) && $_POST['action_type'] === 'wc_checkout';
 
         if ($is_checkout_request && $this->is_checkout_rate_limited()) {
-            $response = [
+            wp_send_json([
                 'status'  => 429,
                 /* translators: Error message shown when user reaches OTP request limit. */
                 'message' => __('You have reached the maximum number of OTP requests. Please try again in 15 minutes.', 'alpha-sms'),
-            ];
-            echo wp_kses_post(json_encode($response));
-            wp_die();
-            exit;
+            ]);
         }
 
         // check for already send otp by checking expiration
@@ -326,13 +306,10 @@ class Alpha_sms_Public
         $current_utc    = current_time('timestamp', true);
         $otp_expires_ts = strtotime($otp_expires);
         if (! empty($otp_expires) && $otp_expires_ts > $current_utc) {
-            $response = [
+            wp_send_json([
                 'status'  => 400,
                 'message' => 'OTP already sent to a phone number. Please try again after ' . gmdate('i:s', $otp_expires_ts - $current_utc) . ' min',
-            ];
-            echo wp_kses_post(json_encode($response));
-            wp_die();
-            exit;
+            ]);
         }
 
         //we will send sms
@@ -355,27 +332,24 @@ class Alpha_sms_Public
                 if ($is_checkout_request && ! is_user_logged_in()) {
                     $this->record_checkout_otp_request();
                 }
-                $response = [
+                wp_send_json([
                     'status'  => 200,
                     'message' => 'A OTP (One Time Passcode) has been sent. Please enter the OTP in the field below to verify your phone.',
-                ];
+                ]);
             } else {
-                /* translators: Error message shown when an error occurs while sending OTP. */
-                $response = ['status' => 400, 'message' => __('Error occurred while sending OTP. Please try again.', 'alpha-sms')];
+                wp_send_json([
+                    'status'  => 400,
+                    /* translators: Error message shown when an error occurs while sending OTP. */
+                    'message' => __('Error occurred while sending OTP. Please try again.', 'alpha-sms'),
+                ]);
             }
-
-            echo wp_kses_post(json_encode($response));
-            wp_die();
-            $response = ['status' => 403, 'message' => __('Security Check failed. Please reload the page and try again.', 'alpha-sms')];
-            /* translators: Error message shown when security check fails during OTP send. */
         }
 
-        $response = ['status' => '400', 'message' => __('Error occurred while sending OTP. Contact Administrator.', 'alpha-sms')];
-        /* translators: Error message shown when an error occurs while sending OTP and user should contact admin. */
-        /* translators: Error message shown when phone number is not valid. */
-        echo wp_kses_post(json_encode($response));
-        wp_die();
-        exit;
+        wp_send_json([
+            'status'  => 400,
+            /* translators: Error message shown when an error occurs while sending OTP and user should contact admin. */
+            'message' => __('Error occurred while sending OTP. Contact Administrator.', 'alpha-sms'),
+        ]);
     }
 
     /*
@@ -810,13 +784,12 @@ class Alpha_sms_Public
     }
 
     /**
-     * Validate guest checkout otp
+     * Validate guest checkout otp.
      *
-     * @param $errors
-     * @param $sanitized_user_login
-     * @param $user_email
-     *
-     * @return mixed
+     * Runs during classic WooCommerce checkout.  Checks both the session-level
+     * verified flag (new universal flow) and the inline OTP code (legacy).
+     * When using the verified flag the billing phone submitted with the order
+     * must match the phone that was verified to prevent dev-tools tampering.
      */
     public function validate_guest_checkout_otp()
     {
@@ -834,6 +807,14 @@ class Alpha_sms_Public
         // New universal approach: check session-level verified flag
         $verified = $this->get_otp_store_value('alpha_sms_checkout_verified');
         if ($verified) {
+            // Ensure the billing phone on the order matches the verified phone
+            if ($this->checkout_phone_matches_verified()) {
+                $this->clear_transient_otp_data();
+                return;
+            }
+
+            /* translators: Error message shown when billing phone was changed after OTP verification. */
+            wc_add_notice(__('The billing phone number does not match the verified number. Please verify again.', 'alpha-sms'), 'error');
             $this->clear_transient_otp_data();
             return;
         }
@@ -855,7 +836,7 @@ class Alpha_sms_Public
     }
 
     /**
-     * Select otp from db and compare
+     * Select otp from db and compare using timing-safe comparison.
      *
      * @param $otp_code
      *
@@ -870,7 +851,7 @@ class Alpha_sms_Public
             $current_utc    = current_time('timestamp', true);
             $otp_expires_ts = strtotime($otp_expires_session);
             if ($otp_expires_ts > $current_utc) {
-                if ($otp_code === $otp_code_session) {
+                if (hash_equals((string) $otp_code_session, (string) $otp_code)) {
                     return true;
                 }
             }
@@ -885,6 +866,40 @@ class Alpha_sms_Public
     public function deletePastData()
     {
         $this->clear_transient_otp_data();
+    }
+
+    /**
+     * Check that the billing phone submitted with the checkout matches
+     * the phone that was OTP-verified in the session.
+     *
+     * This prevents a user from verifying phone A and then changing
+     * the billing phone to phone B via browser dev-tools before placing
+     * the order.
+     *
+     * @return bool True when the phones match or when comparison is not possible.
+     */
+    private function checkout_phone_matches_verified()
+    {
+        $verified_phone = $this->get_otp_store_value('alpha_sms_verified_phone');
+
+        if (empty($verified_phone)) {
+            // No phone was recorded – cannot enforce pinning (backward compat)
+            return true;
+        }
+
+        $billing_phone = isset($_POST['billing_phone']) ? sanitize_text_field(wp_unslash($_POST['billing_phone'])) : '';
+
+        if (empty($billing_phone)) {
+            return false;
+        }
+
+        $normalised = $this->validateNumber($billing_phone);
+
+        if (empty($normalised)) {
+            return false;
+        }
+
+        return hash_equals((string) $verified_phone, (string) $normalised);
     }
 
     /**
@@ -927,7 +942,18 @@ class Alpha_sms_Public
                 $secure = function_exists('is_ssl') ? is_ssl() : false;
                 $ttl    = defined('DAY_IN_SECONDS') ? DAY_IN_SECONDS : 86400;
 
-                setcookie('alpha_sms_session', $session_id, time() + $ttl, $path, $domain, $secure, true);
+                if (PHP_VERSION_ID >= 70300) {
+                    setcookie('alpha_sms_session', $session_id, [
+                        'expires'  => time() + $ttl,
+                        'path'     => $path,
+                        'domain'   => $domain,
+                        'secure'   => $secure,
+                        'httponly' => true,
+                        'samesite' => 'Lax',
+                    ]);
+                } else {
+                    setcookie('alpha_sms_session', $session_id, time() + $ttl, $path, $domain, $secure, true);
+                }
             }
 
             $_COOKIE['alpha_sms_session'] = $session_id;
@@ -1306,16 +1332,18 @@ class Alpha_sms_Public
         if (! $userdata) {
             $userdata = get_user_by('email', $info['user_login']);
         }
+
+        if (! $userdata || empty($userdata->data)) {
+            wp_send_json(['status' => 401, 'message' => __('Wrong username or password!', 'alpha-sms')]);
+        }
+
         // wp_authenticate()
         $user_id = $userdata->data->ID;
 
         $result = wp_check_password($info['user_password'], $userdata->data->user_pass, $user_id);
 
         if (! $user_id || ! $result) {
-            $response = ['status' => 401, 'message' => __('Wrong username or password!', 'alpha-sms')];
-            echo wp_kses_post(json_encode($response));
-            wp_die();
-            exit;
+            wp_send_json(['status' => 401, 'message' => __('Wrong username or password!', 'alpha-sms')]);
         }
 
         $user_phone = get_user_meta($user_id, 'mobile_phone', true);
@@ -1326,10 +1354,7 @@ class Alpha_sms_Public
 
         // if user phone number is not valid then login without verification
         if (! $user_phone || ! $this->validateNumber($user_phone)) {
-            $response = ['status' => 402, 'message' => __('No phone number found', 'alpha-sms')];
-            echo wp_kses_post(json_encode($response));
-            wp_die();
-            exit;
+            wp_send_json(['status' => 402, 'message' => __('No phone number found', 'alpha-sms')]);
         }
 
         //we will send sms
@@ -1345,19 +1370,13 @@ class Alpha_sms_Public
             $log_info = $this->log_login_register_action($user_phone, $otp_code);
 
             if ($log_info) {
-                $response = ['status' => 200, 'message' => 'Please enter the verification code sent to your phone.'];
+                wp_send_json(['status' => 200, 'message' => 'Please enter the verification code sent to your phone.']);
             } else {
-                $response = ['status' => 500, 'message' => 'Something went wrong. Please try again.'];
+                wp_send_json(['status' => 500, 'message' => 'Something went wrong. Please try again.']);
             }
-
-            echo wp_kses_post(json_encode($response));
-            exit;
         }
 
-        $response = ['status' => '400', 'message' => 'Error sending Otp Code. Please contact administrator.'];
-        echo wp_kses_post(json_encode($response));
-        wp_die();
-        exit;
+        wp_send_json(['status' => 400, 'message' => 'Error sending Otp Code. Please contact administrator.']);
     }
 
     /**
@@ -1571,7 +1590,9 @@ class Alpha_sms_Public
      * Validate guest checkout OTP for the block-based (Store API) checkout.
      *
      * Throws a RouteException when the session has not been verified which
-     * prevents the order from being created.
+     * prevents the order from being created.  Also verifies that the billing
+     * phone on the order matches the phone that was OTP-verified to prevent
+     * dev-tools tampering.
      *
      * @param \WC_Order                                    $order   The order being processed.
      * @param \WP_REST_Request|\Automattic\WooCommerce\StoreApi\Routes\V1\Checkout $request The Store API request.
@@ -1593,6 +1614,32 @@ class Alpha_sms_Public
 
         $verified = $this->get_otp_store_value('alpha_sms_checkout_verified');
         if ($verified) {
+            // Verify the phone on the order matches the OTP-verified phone
+            $verified_phone = $this->get_otp_store_value('alpha_sms_verified_phone');
+            $order_phone    = '';
+
+            if (is_callable([$order, 'get_billing_phone'])) {
+                $order_phone = $order->get_billing_phone();
+            }
+
+            $normalised_order = $this->validateNumber($order_phone);
+
+            if (! empty($verified_phone) && ! empty($normalised_order) && ! hash_equals((string) $verified_phone, (string) $normalised_order)) {
+                $this->clear_transient_otp_data();
+
+                $mismatch_message = __('The billing phone number does not match the verified number. Please verify again.', 'alpha-sms');
+
+                if (class_exists('\Automattic\WooCommerce\StoreApi\Exceptions\RouteException')) {
+                    throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
+                        'alpha_sms_phone_mismatch',
+                        $mismatch_message,
+                        400
+                    );
+                }
+
+                throw new \Exception($mismatch_message);
+            }
+
             $this->clear_transient_otp_data();
             return;
         }
