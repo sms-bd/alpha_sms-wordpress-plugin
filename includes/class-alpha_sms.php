@@ -9,7 +9,7 @@ if ( ! defined( 'WPINC' ) ) {
  * A class definition that includes attributes and functions used across both the
  * public-facing side of the site and the admin area.
  *
- * @link       https://alpha.net.bd
+ * @link       https://sms.net.bd
  * @since      1.0.0
  *
  * @package    Alpha_sms
@@ -76,7 +76,7 @@ class Alpha_sms
         if (defined('ALPHA_SMS_VERSION')) {
             $this->version = ALPHA_SMS_VERSION;
         } else {
-            $this->version = '1.0.17';
+            $this->version = '1.0.18';
         }
         $this->plugin_name = 'alpha_sms';
 

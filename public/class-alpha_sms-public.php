@@ -78,6 +78,41 @@ class Alpha_sms_Public
         $this->pluginActive = ! empty($this->options['api_key']);
     }
 
+    private function get_default_wc_order_statuses()
+    {
+        return [
+            'wc-pending' => __('Pending payment', 'alpha-sms'),
+            'wc-processing' => __('Processing', 'alpha-sms'),
+            'wc-on-hold' => __('On hold', 'alpha-sms'),
+            'wc-completed' => __('Completed', 'alpha-sms'),
+            'wc-cancelled' => __('Cancelled', 'alpha-sms'),
+            'wc-refunded' => __('Refunded', 'alpha-sms'),
+            'wc-failed' => __('Failed', 'alpha-sms'),
+        ];
+    }
+
+    private function normalize_order_status_key($status_key)
+    {
+        $status_key = is_string($status_key) ? $status_key : '';
+        $status_key = preg_replace('/^wc-/', '', $status_key);
+        $status_key = sanitize_key(str_replace('-', '_', $status_key));
+
+        return str_replace('-', '_', $status_key);
+    }
+
+    private function get_order_status_label($status_key)
+    {
+        $statuses = function_exists('wc_get_order_statuses') ? wc_get_order_statuses() : $this->get_default_wc_order_statuses();
+
+        if (isset($statuses[$status_key])) {
+            return wp_strip_all_tags($statuses[$status_key]);
+        }
+
+        $normalized = $this->normalize_order_status_key($status_key);
+
+        return $normalized !== '' ? ucwords(str_replace('_', ' ', $normalized)) : $status_key;
+    }
+
     /**
      * Register the stylesheets for the public-facing side of the site.
      *
@@ -428,10 +463,13 @@ class Alpha_sms_Public
 
         require_once ALPHA_SMS_PATH . 'includes/sms.class.php';
 
-        $sms            = new Alpha_SMS_Class($api_key);
-        $sms->numbers   = $to;
-        $sms->body      = $body;
-        $sms->sender_id = $sender_id;
+        $sms          = new Alpha_SMS_Class($api_key);
+        $sms->numbers = $to;
+        $sms->body    = $body;
+
+        if ('' !== $sender_id) {
+            $sms->sender_id = $sender_id;
+        }
 
         return $sms->Send();
     }
@@ -1124,8 +1162,9 @@ class Alpha_sms_Public
         // Get the Customer billing phone
         $billing_phone = $order->get_billing_phone();
 
-        //we will send sms
-        $status = str_replace('-', '_', $order->data['status']);
+        $status_source = ! empty($new_status) ? $new_status : $order->get_status();
+        $status_key = strpos($status_source, 'wc-') === 0 ? $status_source : 'wc-' . $status_source;
+        $status = $this->normalize_order_status_key($status_key);
 
         // option not enabled
         if (
@@ -1154,7 +1193,7 @@ class Alpha_sms_Public
             get_bloginfo(),
             $order->get_billing_first_name(),
             $order_id,
-            $new_status,
+            $this->get_order_status_label($status_key),
             $order->get_currency(),
             $order->get_total(),
             $order_created,
@@ -1172,7 +1211,7 @@ class Alpha_sms_Public
         $response = $this->SendSMS($billing_phone, $buyer_msg);
 
         if ($response->error === 0) {
-            $order->add_order_note(__('Alpha SMS : Notified customer about order status ' . $new_status, 'alpha-sms'));
+            $order->add_order_note(__('Alpha SMS : Notified customer about order status ' . $this->get_order_status_label($status_key), 'alpha-sms'));
         } else {
             $order->add_order_note('Alpha SMS : ' . $response->msg);
         }

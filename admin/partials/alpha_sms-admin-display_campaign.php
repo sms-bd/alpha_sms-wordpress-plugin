@@ -5,7 +5,7 @@
  *
  * This file is used to markup the admin-facing aspects of the plugin.
  *
- * @link       https://alpha.net.bd
+ * @link       https://sms.net.bd
  * @since      1.0.0
  *
  * @package    Alpha_sms

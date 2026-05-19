@@ -121,12 +121,12 @@ function WC_Reg_SendOtp(e) {
    alert_wrapper.html('');
 
    let phone = wc_reg_form.find('#reg_billing_phone').val();
-   let email = wc_reg_form.find('#reg_email').val();
+   let email = wc_reg_form.find('#reg_email').val() || '';
    let password = wc_reg_form.find('#reg_password').val();
    let wc_reg_phone_nonce = wc_reg_form.find('#wc_reg_phone_nonce').val();
    let action_type = wc_reg_form.find('#action_type').val();
 
-   if (!phone || !email) {
+   if (!phone) {
       alert_wrapper.html(showError('Fill in the required fields.'));
       $('html,body').animate({ scrollTop: 0 }, 'slow');
       return;

@@ -24,14 +24,17 @@ class Alpha_SMS_Class
      */
     public function Send()
     {
-
+        $sender_id = trim((string) $this->sender_id);
 
         $postFields = [
             'api_key'   => $this->api_key,
             'to'        => $this->numbers,
             'msg'       => $this->body,
-            'sender_id' => $this->sender_id
         ];
+
+        if ('' !== $sender_id) {
+            $postFields['sender_id'] = $sender_id;
+        }
 
         $response = $this->sendRequest($this->api_url . '/sendsms', 'POST', $postFields);
 

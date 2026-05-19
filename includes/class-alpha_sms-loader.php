@@ -3,7 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 /**
  * Register all actions and filters for the plugin
  *
- * @link       https://alpha.net.bd
+ * @link       https://sms.net.bd
  * @since      1.0.0
  *
  * @package    Alpha_sms

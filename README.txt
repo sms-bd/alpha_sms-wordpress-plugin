@@ -4,7 +4,7 @@ Tags: order notification, woocommerce sms integration, two-step verification, OT
 Requires at least: 3.5
 Tested up to: 6.9
 Requires PHP: 5.6
-Stable tag: 1.0.17
+Stable tag: 1.0.18
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,7 +17,7 @@ Alpha SMS makes it easy to add SMS-based two-factor authentication and transacti
 
 = Key Features =
 * OTP verification for WordPress and WooCommerce registration and login forms.
-* WooCommerce order status notifications for customers and administrators.
+* WooCommerce order status notifications for customers and administrators, including custom statuses registered in WooCommerce.
 * Bulk SMS campaign tool for WordPress and WooCommerce users or custom phone lists.
 * Message templates that can be tailored directly from the WordPress admin.
 * Built specifically for Bangladeshi mobile operators using the Alpha SMS gateway.
@@ -58,6 +58,11 @@ Yes. OTP verification for WordPress and WooCommerce registration and login works
 2. Campaign form for sending bulk SMS.
 
 == Changelog ==
+
+= 1.0.18 =
+* Added support for customer SMS templates on custom WooCommerce order statuses exposed through WooCommerce runtime status registration.
+* Trimmed Sender ID before saving so whitespace-only values are stored as empty.
+* Refreshed WooCommerce customer notification settings to render status templates dynamically.
 
 = 1.0.17 =
 * Save verified registration phone numbers to user profile metadata for OTP login reuse.

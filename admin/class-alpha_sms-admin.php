@@ -6,7 +6,7 @@ if (!defined('WPINC')) {
 /**
  * The admin-specific functionality of the plugin.
  *
- * @link       https://alpha.net.bd
+ * @link       https://sms.net.bd
  * @since      1.0.0
  *
  * @package    Alpha_sms
@@ -91,6 +91,53 @@ class Alpha_sms_Admin
         }
 
         return null;
+    }
+
+    private function get_default_wc_order_statuses()
+    {
+        return [
+            'wc-pending' => __('Pending payment', 'alpha-sms'),
+            'wc-processing' => __('Processing', 'alpha-sms'),
+            'wc-on-hold' => __('On hold', 'alpha-sms'),
+            'wc-completed' => __('Completed', 'alpha-sms'),
+            'wc-cancelled' => __('Cancelled', 'alpha-sms'),
+            'wc-refunded' => __('Refunded', 'alpha-sms'),
+            'wc-failed' => __('Failed', 'alpha-sms'),
+        ];
+    }
+
+    private function normalize_order_status_key($status_key)
+    {
+        $status_key = is_string($status_key) ? $status_key : '';
+        $status_key = preg_replace('/^wc-/', '', $status_key);
+        $status_key = sanitize_key(str_replace('-', '_', $status_key));
+
+        return str_replace('-', '_', $status_key);
+    }
+
+    private function get_customer_order_status_configs()
+    {
+        $statuses = function_exists('wc_get_order_statuses') ? wc_get_order_statuses() : $this->get_default_wc_order_statuses();
+
+        $configs = [];
+
+        foreach ($statuses as $status_key => $label) {
+            $normalized = $this->normalize_order_status_key($status_key);
+
+            if ($normalized === '') {
+                continue;
+            }
+
+            $configs[] = [
+                'status_key' => $status_key,
+                'label' => wp_strip_all_tags($label),
+                'normalized' => $normalized,
+                'enabled_key' => 'order_status_' . $normalized,
+                'message_key' => 'ORDER_STATUS_' . strtoupper($normalized) . '_SMS',
+            ];
+        }
+
+        return $configs;
     }
 
     /**
@@ -250,8 +297,10 @@ class Alpha_sms_Admin
             $input['api_key'] = $options['api_key'];
         }
 
+        $sender_id = isset($input['sender_id']) ? trim(wp_unslash($input['sender_id'])) : '';
+
         $options['api_key'] = (isset($input['api_key']) && !empty($input['api_key'])) ? esc_attr($input['api_key']) : '';
-        $options['sender_id'] = (isset($input['sender_id']) && !empty($input['sender_id'])) ? esc_attr($input['sender_id']) : '';
+        $options['sender_id'] = $sender_id !== '' ? esc_attr($sender_id) : '';
 
         $options['order_status'] = (isset($input['order_status']) && !empty($input['order_status'])) ? 1 : 0;
         $options['wp_reg'] = (isset($input['wp_reg']) && !empty($input['wp_reg'])) ? 1 : 0;
@@ -260,24 +309,18 @@ class Alpha_sms_Admin
         $options['wc_login'] = (isset($input['wc_login']) && !empty($input['wc_login'])) ? 1 : 0;
         $options['otp_checkout'] = (isset($input['otp_checkout']) && !empty($input['otp_checkout'])) ? 1 : 0;
         $options['admin_phones'] = (isset($input['admin_phones']) && !empty($input['admin_phones'])) ? esc_attr($input['admin_phones']) : '';
-
-        $options['order_status_pending'] = (isset($input['order_status_pending']) && !empty($input['order_status_pending'])) ? 1 : 0;
-        $options['order_status_processing'] = (isset($input['order_status_processing']) && !empty($input['order_status_processing'])) ? 1 : 0;
-        $options['order_status_on_hold'] = (isset($input['order_status_on_hold']) && !empty($input['order_status_on_hold'])) ? 1 : 0;
-        $options['order_status_completed'] = (isset($input['order_status_completed']) && !empty($input['order_status_completed'])) ? 1 : 0;
-        $options['order_status_cancelled'] = (isset($input['order_status_cancelled']) && !empty($input['order_status_cancelled'])) ? 1 : 0;
-        $options['order_status_refunded'] = (isset($input['order_status_refunded']) && !empty($input['order_status_refunded'])) ? 1 : 0;
-        $options['order_status_failed'] = (isset($input['order_status_failed']) && !empty($input['order_status_failed'])) ? 1 : 0;
         $options['order_status_admin'] = (isset($input['order_status_admin']) && !empty($input['order_status_admin'])) ? 1 : 0;
+        $options['ADMIN_STATUS_SMS'] = (isset($input['ADMIN_STATUS_SMS']) && !empty($input['ADMIN_STATUS_SMS'])) ? sanitize_textarea_field(wp_unslash($input['ADMIN_STATUS_SMS'])) : '';
 
-        $options['ORDER_STATUS_PENDING_SMS'] = (isset($input['ORDER_STATUS_PENDING_SMS']) && !empty($input['ORDER_STATUS_PENDING_SMS'])) ? esc_attr($input['ORDER_STATUS_PENDING_SMS']) : '';
-        $options['ORDER_STATUS_PROCESSING_SMS'] = (isset($input['ORDER_STATUS_PROCESSING_SMS']) && !empty($input['ORDER_STATUS_PROCESSING_SMS'])) ? esc_attr($input['ORDER_STATUS_PROCESSING_SMS']) : '';
-        $options['ORDER_STATUS_ON_HOLD_SMS'] = (isset($input['ORDER_STATUS_ON_HOLD_SMS']) && !empty($input['ORDER_STATUS_ON_HOLD_SMS'])) ? esc_attr($input['ORDER_STATUS_ON_HOLD_SMS']) : '';
-        $options['ORDER_STATUS_COMPLETED_SMS'] = (isset($input['ORDER_STATUS_COMPLETED_SMS']) && !empty($input['ORDER_STATUS_COMPLETED_SMS'])) ? esc_attr($input['ORDER_STATUS_COMPLETED_SMS']) : '';
-        $options['ORDER_STATUS_CANCELLED_SMS'] = (isset($input['ORDER_STATUS_CANCELLED_SMS']) && !empty($input['ORDER_STATUS_CANCELLED_SMS'])) ? esc_attr($input['ORDER_STATUS_CANCELLED_SMS']) : '';
-        $options['ORDER_STATUS_REFUNDED_SMS'] = (isset($input['ORDER_STATUS_REFUNDED_SMS']) && !empty($input['ORDER_STATUS_REFUNDED_SMS'])) ? esc_attr($input['ORDER_STATUS_REFUNDED_SMS']) : '';
-        $options['ORDER_STATUS_FAILED_SMS'] = (isset($input['ORDER_STATUS_FAILED_SMS']) && !empty($input['ORDER_STATUS_FAILED_SMS'])) ? esc_attr($input['ORDER_STATUS_FAILED_SMS']) : '';
-        $options['ADMIN_STATUS_SMS'] = (isset($input['ADMIN_STATUS_SMS']) && !empty($input['ADMIN_STATUS_SMS'])) ? esc_attr($input['ADMIN_STATUS_SMS']) : '';
+        foreach ($this->get_customer_order_status_configs() as $status_config) {
+            $enabled_key = $status_config['enabled_key'];
+            $message_key = $status_config['message_key'];
+
+            $options[$enabled_key] = !empty($input[$enabled_key]) ? 1 : 0;
+
+            $message = isset($input[$message_key]) ? trim(wp_unslash($input[$message_key])) : '';
+            $options[$message_key] = $message !== '' ? sanitize_textarea_field($message) : '';
+        }
 
         if (!$this->checkAPI($options['api_key'])) {
 
@@ -286,23 +329,19 @@ class Alpha_sms_Admin
                 $options['wc_reg'] =
                 $options['wc_login'] =
                 $options['otp_checkout'] =
-                $options['order_status_pending'] =
-                $options['order_status_processing'] =
-                $options['order_status_on_hold'] =
-                $options['order_status_completed'] =
-                $options['order_status_cancelled'] =
-                $options['order_status_refunded'] =
-                $options['order_status_failed'] =
                 $options['order_status_admin'] = 0;
+
+            foreach ($this->get_customer_order_status_configs() as $status_config) {
+                $options[$status_config['enabled_key']] = 0;
+            }
 
             $options['api_key'] = '';
 
             add_settings_error(
-                $this->plugin_name, // Slug title of setting
-                $this->plugin_name, // Slug-name , Used as part of 'id' attribute in HTML output.
+                $this->plugin_name,
+                $this->plugin_name,
                 __('Please configure a valid SMS API Key.', 'alpha-sms'),
-                // message text, will be shown inside styled <div> and <p> tags
-                'error' // Message type, controls HTML class. Accepts 'error' or 'updated'.
+                'error'
             );
         }
 

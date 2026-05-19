@@ -5,7 +5,7 @@
  *
  * This file is used to markup the admin-facing aspects of the plugin.
  *
- * @link       https://alpha.net.bd
+ * @link       https://sms.net.bd
  * @since      1.0.0
  *
  * @package    Alpha_sms
@@ -92,25 +92,50 @@ $alpha_sms_has_woocommerce = is_plugin_active('woocommerce/woocommerce.php');
         $alpha_sms_wc_login = (isset($alpha_sms_options['wc_login']) && !empty($alpha_sms_options['wc_login'])) ? 1 : 0;
         $alpha_sms_otp_checkout = (isset($alpha_sms_options['otp_checkout']) && !empty($alpha_sms_options['otp_checkout'])) ? 1 : 0;
         $alpha_sms_admin_phones = (isset($alpha_sms_options['admin_phones']) && !empty($alpha_sms_options['admin_phones'])) ? esc_attr($alpha_sms_options['admin_phones']) : '';
+        $alpha_sms_order_status_admin = (isset($alpha_sms_options['order_status_admin']) && !empty($alpha_sms_options['order_status_admin'])) ? 1 : 0;
+        $alpha_sms_admin_status_sms = (isset($alpha_sms_options['ADMIN_STATUS_SMS']) && !empty($alpha_sms_options['ADMIN_STATUS_SMS'])) ? $alpha_sms_options['ADMIN_STATUS_SMS'] : $alpha_sms_order_alerts['DEFAULT_ADMIN_STATUS_SMS'];
 
+        $alpha_sms_customer_statuses = [];
+        $alpha_sms_wc_statuses = function_exists('wc_get_order_statuses')
+            ? wc_get_order_statuses()
+            : [
+                'wc-pending' => __('Pending payment', 'alpha-sms'),
+                'wc-processing' => __('Processing', 'alpha-sms'),
+                'wc-on-hold' => __('On hold', 'alpha-sms'),
+                'wc-completed' => __('Completed', 'alpha-sms'),
+                'wc-cancelled' => __('Cancelled', 'alpha-sms'),
+                'wc-refunded' => __('Refunded', 'alpha-sms'),
+                'wc-failed' => __('Failed', 'alpha-sms'),
+            ];
 
-        $alpha_sms_order_status_pending             = (isset($alpha_sms_options['order_status_pending']) && !empty($alpha_sms_options['order_status_pending'])) ? 1 : 0;
-        $alpha_sms_order_status_pending_sms         = (isset($alpha_sms_options['ORDER_STATUS_PENDING_SMS']) && !empty($alpha_sms_options['ORDER_STATUS_PENDING_SMS'])) ? $alpha_sms_options['ORDER_STATUS_PENDING_SMS'] : $alpha_sms_order_alerts['DEFAULT_ORDER_STATUS_PENDING_SMS'];
-        $alpha_sms_order_status_processing          = (isset($alpha_sms_options['order_status_processing']) && !empty($alpha_sms_options['order_status_processing'])) ? 1 : 0;
-        $alpha_sms_order_status_processing_sms      = (isset($alpha_sms_options['ORDER_STATUS_PROCESSING_SMS']) && !empty($alpha_sms_options['ORDER_STATUS_PROCESSING_SMS'])) ? $alpha_sms_options['ORDER_STATUS_PROCESSING_SMS'] : $alpha_sms_order_alerts['DEFAULT_ORDER_STATUS_PROCESSING_SMS'];
-        $alpha_sms_order_status_on_hold             = (isset($alpha_sms_options['order_status_on_hold']) && !empty($alpha_sms_options['order_status_on_hold'])) ? 1 : 0;
-        $alpha_sms_order_status_on_hold_sms         = (isset($alpha_sms_options['ORDER_STATUS_ON_HOLD_SMS']) && !empty($alpha_sms_options['ORDER_STATUS_ON_HOLD_SMS'])) ? $alpha_sms_options['ORDER_STATUS_ON_HOLD_SMS'] : $alpha_sms_order_alerts['DEFAULT_ORDER_STATUS_ON_HOLD_SMS'];
-        $alpha_sms_order_status_completed           = (isset($alpha_sms_options['order_status_completed']) && !empty($alpha_sms_options['order_status_completed'])) ? 1 : 0;
-        $alpha_sms_order_status_completed_sms       = (isset($alpha_sms_options['ORDER_STATUS_COMPLETED_SMS']) && !empty($alpha_sms_options['ORDER_STATUS_COMPLETED_SMS'])) ? $alpha_sms_options['ORDER_STATUS_COMPLETED_SMS'] : $alpha_sms_order_alerts['DEFAULT_ORDER_STATUS_COMPLETED_SMS'];
-        $alpha_sms_order_status_cancelled           = (isset($alpha_sms_options['order_status_cancelled']) && !empty($alpha_sms_options['order_status_cancelled'])) ? 1 : 0;
-        $alpha_sms_order_status_cancelled_sms       = (isset($alpha_sms_options['ORDER_STATUS_CANCELLED_SMS']) && !empty($alpha_sms_options['ORDER_STATUS_CANCELLED_SMS'])) ? $alpha_sms_options['ORDER_STATUS_CANCELLED_SMS'] : $alpha_sms_order_alerts['DEFAULT_ORDER_STATUS_CANCELLED_SMS'];
-        $alpha_sms_order_status_refunded            = (isset($alpha_sms_options['order_status_refunded']) && !empty($alpha_sms_options['order_status_refunded'])) ? 1 : 0;
-        $alpha_sms_order_status_refunded_sms        = (isset($alpha_sms_options['ORDER_STATUS_REFUNDED_SMS']) && !empty($alpha_sms_options['ORDER_STATUS_REFUNDED_SMS'])) ? $alpha_sms_options['ORDER_STATUS_REFUNDED_SMS'] : $alpha_sms_order_alerts['DEFAULT_ORDER_STATUS_REFUNDED_SMS'];
-        $alpha_sms_order_status_failed              = (isset($alpha_sms_options['order_status_failed']) && !empty($alpha_sms_options['order_status_failed'])) ? 1 : 0;
-        $alpha_sms_order_status_failed_sms          = (isset($alpha_sms_options['ORDER_STATUS_FAILED_SMS']) && !empty($alpha_sms_options['ORDER_STATUS_FAILED_SMS'])) ? $alpha_sms_options['ORDER_STATUS_FAILED_SMS'] : $alpha_sms_order_alerts['DEFAULT_ORDER_STATUS_FAILED_SMS'];
-        $alpha_sms_order_status_admin               = (isset($alpha_sms_options['order_status_admin']) && !empty($alpha_sms_options['order_status_admin'])) ? 1 : 0;
-        $alpha_sms_admin_status_sms                 = (isset($alpha_sms_options['ADMIN_STATUS_SMS']) && !empty($alpha_sms_options['ADMIN_STATUS_SMS'])) ? $alpha_sms_options['ADMIN_STATUS_SMS'] : $alpha_sms_order_alerts['DEFAULT_ADMIN_STATUS_SMS'];
+        foreach ($alpha_sms_wc_statuses as $alpha_sms_status_key => $alpha_sms_status_label) {
+            $alpha_sms_normalized = str_replace('-', '_', preg_replace('/^wc-/', '', $alpha_sms_status_key));
+            $alpha_sms_enabled_key = 'order_status_' . $alpha_sms_normalized;
+            $alpha_sms_message_key = 'ORDER_STATUS_' . strtoupper($alpha_sms_normalized) . '_SMS';
+            $alpha_sms_default_key = 'DEFAULT_' . $alpha_sms_message_key;
+            $alpha_sms_default_message = isset($alpha_sms_order_alerts[$alpha_sms_default_key])
+                ? $alpha_sms_order_alerts[$alpha_sms_default_key]
+                : __("[store_name] - Order #[order_id] status updated\nHello [billing_first_name], your order #[order_id] at [store_name] is now [order_status].", 'alpha-sms');
 
+            $alpha_sms_customer_statuses[] = [
+                'label' => wp_strip_all_tags($alpha_sms_status_label),
+                'enabled_key' => $alpha_sms_enabled_key,
+                'message_key' => $alpha_sms_message_key,
+                'enabled' => (isset($alpha_sms_options[$alpha_sms_enabled_key]) && !empty($alpha_sms_options[$alpha_sms_enabled_key])) ? 1 : 0,
+                'message' => (isset($alpha_sms_options[$alpha_sms_message_key]) && !empty($alpha_sms_options[$alpha_sms_message_key])) ? $alpha_sms_options[$alpha_sms_message_key] : $alpha_sms_default_message,
+            ];
+        }
+
+        $alpha_sms_customer_status_token_set = [
+            '[store_name]',
+            '[billing_first_name]',
+            '[order_id]',
+            '[order_status]',
+            '[order_date_created]',
+            '[order_date_completed]',
+            '[order_currency]',
+            '[order_amount]',
+        ];
 
         if (!empty($alpha_sms_api_key)) {
 
@@ -166,7 +191,7 @@ $alpha_sms_has_woocommerce = is_plugin_active('woocommerce/woocommerce.php');
                 <td>
                     <span id="<?php echo esc_attr($this->plugin_name . '-balance'); ?>">
                         <?php if ($alpha_sms_balance === 'empty') : ?>
-                            <strong>Don't have an account? <a href='https://alpha.net.bd/SMS/SignUp/'>Register Now</a> (Free
+                            <strong>Don't have an account? <a href='https://sms.bd/signup/'>Register Now</a> (Free
                                 SMS Credit after Sign-up).</strong>
                         <?php elseif (is_numeric($alpha_sms_balance)) : ?>
                             <strong>Balance:</strong> BDT
@@ -252,199 +277,47 @@ $alpha_sms_has_woocommerce = is_plugin_active('woocommerce/woocommerce.php');
                                 <span class="my-2 d-block sms_tokens"><span>[store_name]</span> |
                                     <span>[billing_first_name]</span> |
                                     <span>[order_id]</span> |
-                                    <span>[order_status]</span> | <span>[order_date_created]</span> </span>
-                                <span>[order_currency]</span> | <span>[order_amount]</span>
+                                    <span>[order_status]</span> |
+                                    <span>[order_date_created]</span> |
+                                    <span>[order_currency]</span> |
+                                    <span>[order_amount]</span>
                                 </span>
                             </legend>
-                            <textarea id="<?php echo esc_attr($this->plugin_name . '-admin_status_sms'); ?>" name="<?php echo esc_attr($this->plugin_name . '[ADMIN_STATUS_SMS]'); ?>" rows="3" cols="85"><?php echo esc_html($alpha_sms_admin_status_sms); ?></textarea>
+                            <textarea id="<?php echo esc_attr($this->plugin_name . '-admin_status_sms'); ?>" name="<?php echo esc_attr($this->plugin_name . '[ADMIN_STATUS_SMS]'); ?>" rows="3" cols="85"><?php echo esc_textarea($alpha_sms_admin_status_sms); ?></textarea>
                         </fieldset>
 
                     </div>
                 </li>
 
 
-                <!-- working start -->
+                <h3><?php esc_html_e('Notify Customer', 'alpha-sms'); ?></h3>
 
+                <?php foreach ($alpha_sms_customer_statuses as $alpha_sms_status_config) : ?>
+                    <li>
+                        <input class="alpha-collapse" type="checkbox" id="<?php echo esc_attr($this->plugin_name . '-' . $alpha_sms_status_config['enabled_key']); ?>" name="<?php echo esc_attr($this->plugin_name . '[' . $alpha_sms_status_config['enabled_key'] . ']'); ?>" <?php checked($alpha_sms_status_config['enabled'], 1); ?> />
+                        <label for="<?php echo esc_attr($this->plugin_name . '-' . $alpha_sms_status_config['enabled_key']); ?>">
+                            <span class="toggle_btn"></span>
+                            <span><?php echo esc_html(sprintf(__('On Order %s', 'alpha-sms'), $alpha_sms_status_config['label'])); ?></span>
+                        </label>
+                        <div class="alpha-collapsable" id="<?php echo esc_attr($alpha_sms_status_config['enabled_key']); ?>">
+                            <fieldset class="notify_template">
+                                <legend>
+                                    <span class="sms_tokens my-2 d-block"><span>[store_name]</span> |
+                                        <span>[billing_first_name]</span> |
+                                        <span>[order_id]</span> |
+                                        <span>[order_status]</span> |
+                                        <span>[order_date_created]</span> |
+                                        <span>[order_date_completed]</span> |
+                                        <span>[order_currency]</span> |
+                                        <span>[order_amount]</span>
+                                    </span>
+                                </legend>
 
-                <h3>Notify Customer</h3>
-
-
-                <li>
-                    <input class="alpha-collapse" type="checkbox" id="<?php echo esc_attr($this->plugin_name . '-order_status_pending'); ?>" name="<?php echo esc_attr($this->plugin_name . '[order_status_pending]'); ?>" <?php checked($alpha_sms_order_status_pending, 1); ?> />
-                    <label for="<?php echo esc_attr($this->plugin_name . '-order_status_pending'); ?>">
-                        <span class="toggle_btn"></span>
-                        <span><?php esc_attr_e('On Order Pending', 'alpha-sms'); ?></span>
-                    </label>
-                    <div class="alpha-collapsable" id="order_status_pending">
-
-                        <fieldset class="notify_template">
-                            <legend>
-                                <span class="sms_tokens my-2 d-block"><span>[store_name]</span> |
-                                    <span>[billing_first_name]</span> |
-                                    <span>[order_id]</span> |
-                                    <span>[order_status]</span> | <span>[order_date_created]</span>
-                                    <span>[order_currency]</span> | <span>[order_amount]</span>
-                                </span>
-                            </legend>
-
-                            <textarea id="<?php echo esc_attr($this->plugin_name . '-order_status_pending_sms'); ?>" name="<?php echo esc_attr($this->plugin_name . '[ORDER_STATUS_PENDING_SMS]'); ?>" rows="4" cols="85"><?php echo esc_html($alpha_sms_order_status_pending_sms); ?></textarea>
-                        </fieldset>
-
-                    </div>
-                </li>
-
-
-                <li>
-                    <input class="alpha-collapse" type="checkbox" id="<?php echo esc_attr($this->plugin_name . '-order_status_processing'); ?>" name="<?php echo esc_attr($this->plugin_name . '[order_status_processing]'); ?>" <?php checked($alpha_sms_order_status_processing, 1); ?> />
-                    <label for="<?php echo esc_attr($this->plugin_name . '-order_status_processing'); ?>">
-                        <span class="toggle_btn"></span>
-                        <span><?php esc_attr_e('On Order Processing', 'alpha-sms'); ?></span>
-                    </label>
-                    <div class="alpha-collapsable" id="order_status_processing">
-
-                        <fieldset class="notify_template">
-                            <legend>
-                                <span class="sms_tokens my-2 d-block"><span>[store_name]</span> |
-                                    <span>[billing_first_name]</span> |
-                                    <span>[order_id]</span> |
-                                    <span>[order_status]</span> | <span>[order_date_created]</span>
-                                    <span>[order_currency]</span> | <span>[order_amount]</span>
-                                </span>
-                            </legend>
-
-                            <textarea id="<?php echo esc_attr($this->plugin_name . '-order_status_processing_sms'); ?>" name="<?php echo esc_attr($this->plugin_name . '[ORDER_STATUS_PROCESSING_SMS]'); ?>" rows="4" cols="85"><?php echo esc_html($alpha_sms_order_status_processing_sms); ?></textarea>
-                        </fieldset>
-
-                    </div>
-                </li>
-
-                <li>
-                    <input class="alpha-collapse" type="checkbox" id="<?php echo esc_attr($this->plugin_name . '-order_status_on_hold'); ?>" name="<?php echo esc_attr($this->plugin_name . '[order_status_on_hold]'); ?>" <?php checked($alpha_sms_order_status_on_hold, 1); ?> />
-                    <label for="<?php echo esc_attr($this->plugin_name . '-order_status_on_hold'); ?>">
-                        <span class="toggle_btn"></span>
-                        <span><?php esc_attr_e('On Order On hold', 'alpha-sms'); ?></span>
-                    </label>
-                    <div class="alpha-collapsable" id="order_status_on_hold">
-
-                        <fieldset class="notify_template">
-                            <legend>
-                                <span class="sms_tokens my-2 d-block"><span>[store_name]</span> |
-                                    <span>[billing_first_name]</span> |
-                                    <span>[order_id]</span> |
-                                    <span>[order_status]</span> | <span>[order_date_created]</span>
-                                    <span>[order_currency]</span> | <span>[order_amount]</span>
-                                </span>
-                            </legend>
-
-                            <textarea id="<?php echo esc_attr($this->plugin_name . '-order_status_on_hold_sms'); ?>" name="<?php echo esc_attr($this->plugin_name . '[ORDER_STATUS_ON_HOLD_SMS]'); ?>" rows="4" cols="85"><?php echo esc_html($alpha_sms_order_status_on_hold_sms); ?></textarea>
-                        </fieldset>
-
-                    </div>
-                </li>
-
-
-
-                <li>
-                    <input class="alpha-collapse" type="checkbox" id="<?php echo esc_attr($this->plugin_name . '-order_status_completed'); ?>" name="<?php echo esc_attr($this->plugin_name . '[order_status_completed]'); ?>" <?php checked($alpha_sms_order_status_completed, 1); ?> />
-                    <label for="<?php echo esc_attr($this->plugin_name . '-order_status_completed'); ?>">
-                        <span class="toggle_btn"></span>
-                        <span><?php esc_attr_e('On Order Completed', 'alpha-sms'); ?></span>
-                    </label>
-                    <div class="alpha-collapsable" id="order_status_completed">
-
-                        <fieldset class="notify_template">
-                            <legend>
-                                <span class="sms_tokens my-2 d-block"><span>[store_name]</span> |
-                                    <span>[billing_first_name]</span> |
-                                    <span>[order_id]</span> |
-                                    <span>[order_status]</span> | <span>[order_date_created]</span> | <span>[order_date_completed]</span>
-                                    <span>[order_currency]</span> | <span>[order_amount]</span>
-                                </span>
-                            </legend>
-
-                            <textarea id="<?php echo esc_attr($this->plugin_name . '-order_status_completed_sms'); ?>" name="<?php echo esc_attr($this->plugin_name . '[ORDER_STATUS_COMPLETED_SMS]'); ?>" rows="4" cols="85"><?php echo esc_html($alpha_sms_order_status_completed_sms); ?></textarea>
-                        </fieldset>
-
-                    </div>
-                </li>
-
-
-                <li>
-                    <input class="alpha-collapse" type="checkbox" id="<?php echo esc_attr($this->plugin_name . '-order_status_cancelled'); ?>" name="<?php echo esc_attr($this->plugin_name . '[order_status_cancelled]'); ?>" <?php checked($alpha_sms_order_status_cancelled, 1); ?> />
-                    <label for="<?php echo esc_attr($this->plugin_name . '-order_status_cancelled'); ?>">
-                        <span class="toggle_btn"></span>
-                        <span><?php esc_attr_e('On Order Cancelled', 'alpha-sms'); ?></span>
-                    </label>
-                    <div class="alpha-collapsable" id="order_status_cancelled">
-
-                        <fieldset class="notify_template">
-                            <legend>
-                                <span class="sms_tokens my-2 d-block"><span>[store_name]</span> |
-                                    <span>[billing_first_name]</span> |
-                                    <span>[order_id]</span> |
-                                    <span>[order_status]</span> | <span>[order_date_created]</span>
-                                    <span>[order_currency]</span> | <span>[order_amount]</span>
-                                </span>
-                            </legend>
-
-                            <textarea id="<?php echo esc_attr($this->plugin_name . '-order_status_cancelled_sms'); ?>" name="<?php echo esc_attr($this->plugin_name . '[ORDER_STATUS_CANCELLED_SMS]'); ?>" rows="4" cols="85"><?php echo esc_html($alpha_sms_order_status_cancelled_sms); ?></textarea>
-                        </fieldset>
-
-                    </div>
-                </li>
-
-
-                <li>
-                    <input class="alpha-collapse" type="checkbox" id="<?php echo esc_attr($this->plugin_name . '-order_status_refunded'); ?>" name="<?php echo esc_attr($this->plugin_name . '[order_status_refunded]'); ?>" <?php checked($alpha_sms_order_status_refunded, 1); ?> />
-                    <label for="<?php echo esc_attr($this->plugin_name . '-order_status_refunded'); ?>">
-                        <span class="toggle_btn"></span>
-                        <span><?php esc_attr_e('On Order Refunded', 'alpha-sms'); ?></span>
-                    </label>
-                    <div class="alpha-collapsable" id="order_status_refunded">
-
-                        <fieldset class="notify_template">
-                            <legend>
-                                <span class="sms_tokens my-2 d-block"><span>[store_name]</span> |
-                                    <span>[billing_first_name]</span> |
-                                    <span>[order_id]</span> |
-                                    <span>[order_status]</span> | <span>[order_date_created]</span>
-                                    <span>[order_currency]</span> | <span>[order_amount]</span>
-                                </span>
-                            </legend>
-
-                            <textarea id="<?php echo esc_attr($this->plugin_name . '-order_status_refunded_sms'); ?>" name="<?php echo esc_attr($this->plugin_name . '[ORDER_STATUS_REFUNDED_SMS]'); ?>" rows="4" cols="85"><?php echo esc_html($alpha_sms_order_status_refunded_sms); ?></textarea>
-                        </fieldset>
-
-                    </div>
-                </li>
-
-
-
-                <li>
-                    <input class="alpha-collapse" type="checkbox" id="<?php echo esc_attr($this->plugin_name . '-order_status_failed'); ?>" name="<?php echo esc_attr($this->plugin_name . '[order_status_failed]'); ?>" <?php checked($alpha_sms_order_status_failed, 1); ?> />
-                    <label for="<?php echo esc_attr($this->plugin_name . '-order_status_failed'); ?>">
-                        <span class="toggle_btn"></span>
-                        <span><?php esc_attr_e('On Order Failed', 'alpha-sms'); ?></span>
-                    </label>
-                    <div class="alpha-collapsable" id="order_status_failed">
-
-                        <fieldset class="notify_template">
-                            <legend>
-                                <span class="sms_tokens my-2 d-block"><span>[store_name]</span> |
-                                    <span>[billing_first_name]</span> |
-                                    <span>[order_id]</span> |
-                                    <span>[order_status]</span> | <span>[order_date_created]</span>
-                                    <span>[order_currency]</span> | <span>[order_amount]</span>
-                                </span>
-                            </legend>
-
-                            <textarea id="<?php echo esc_attr($this->plugin_name . '-order_status_failed_sms'); ?>" name="<?php echo esc_attr($this->plugin_name . '[ORDER_STATUS_FAILED_SMS]'); ?>" rows="4" cols="85"><?php echo esc_html($alpha_sms_order_status_failed_sms); ?></textarea>
-                        </fieldset>
-
-                    </div>
-                </li>
-
-                <!-- working end -->
+                                <textarea id="<?php echo esc_attr($this->plugin_name . '-' . strtolower($alpha_sms_status_config['message_key'])); ?>" name="<?php echo esc_attr($this->plugin_name . '[' . $alpha_sms_status_config['message_key'] . ']'); ?>" rows="4" cols="85"><?php echo esc_textarea($alpha_sms_status_config['message']); ?></textarea>
+                            </fieldset>
+                        </div>
+                    </li>
+                <?php endforeach; ?>
 
             </ol>
         <?php }
