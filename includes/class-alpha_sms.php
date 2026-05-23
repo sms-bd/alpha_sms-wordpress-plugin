@@ -286,11 +286,21 @@ class Alpha_sms
         $this->loader->add_action('wp_ajax_wc_send_otp', $plugin_public, 'send_otp_for_reg');
         $this->loader->add_action('wp_ajax_nopriv_wc_send_otp', $plugin_public, 'send_otp_for_reg');
 
-        // otp for guest checkout form
+        // Render checkout OTP panel via wp_footer (works with any theme, block checkout, Elementor, etc.)
+        $this->loader->add_action('wp_footer', $plugin_public, 'render_checkout_otp_modal');
+
+        // Legacy: keep classic hook for themes that embed the form inline
         $this->loader->add_action('woocommerce_review_order_before_submit', $plugin_public, 'otp_form_at_checkout');
-        
-        // otp validation on guest checkout
+
+        // otp validation on classic checkout
         $this->loader->add_action('woocommerce_checkout_process', $plugin_public, 'validate_guest_checkout_otp');
+
+        // otp validation on block-based (Store API) checkout
+        $this->loader->add_action('woocommerce_store_api_checkout_update_order_from_request', $plugin_public, 'validate_block_checkout_otp', 10, 2);
+
+        // AJAX endpoint to verify OTP and set session-level verified flag
+        $this->loader->add_action('wp_ajax_alpha_sms_verify_checkout_otp', $plugin_public, 'ajax_verify_checkout_otp');
+        $this->loader->add_action('wp_ajax_nopriv_alpha_sms_verify_checkout_otp', $plugin_public, 'ajax_verify_checkout_otp');
 
 
     }
